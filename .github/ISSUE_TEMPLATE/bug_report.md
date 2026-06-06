@@ -18,7 +18,7 @@ labels: bug
 
 ## Environment
 
-- Version: <!-- `myapp version` -->
+- Version: <!-- `mcp-plane version` -->
 - OS / Arch:
 - Install method: <!-- binary, brew, docker, source -->
 

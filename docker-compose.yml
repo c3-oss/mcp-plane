@@ -1,12 +1,12 @@
 # Stub Compose file — uncomment services as you add dependencies (Postgres,
-# Redis, MinIO, etc). The myapp service builds the local image from this
+# Redis, MinIO, etc). The mcp-plane service builds the local image from this
 # repo's Dockerfile.
 services:
-  myapp:
+  mcp-plane:
     build:
       context: .
-      target: myapp
-    image: myapp:local
+      target: mcp-plane
+    image: mcp-plane:local
     # ports:
     #   - "8080:8080"
     # env_file:
@@ -17,9 +17,9 @@ services:
   # postgres:
   #   image: postgres:16-alpine
   #   environment:
-  #     POSTGRES_USER: myapp
-  #     POSTGRES_PASSWORD: myapp
-  #     POSTGRES_DB: myapp
+  #     POSTGRES_USER: mcp-plane
+  #     POSTGRES_PASSWORD: mcp-plane
+  #     POSTGRES_DB: mcp-plane
   #   ports:
   #     - "5432:5432"
   #   volumes:
