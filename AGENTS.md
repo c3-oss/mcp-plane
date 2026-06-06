@@ -3,16 +3,45 @@
 Canonical guide for humans and AI coding agents working in this repository.
 Read this end-to-end before proposing substantial changes.
 
+## What this is
+
+`mcp-plane` is an MCP server (stdio) that exposes the Plane REST API as
+tools. See [`docs/architecture.md`](docs/architecture.md) for the package
+layering.
+
 ## Project shape
 
-- **Module**: declared in `go.mod`. The template ships as `github.com/c3-oss/go-template`; after `./scripts/setup.sh` it will reflect your repo path.
+- **Module**: `github.com/c3-oss/mcp-plane` (declared in `go.mod`).
 - **Layout**:
-  - `cmd/<binary>/` — entrypoints (`main` packages). The template ships with one (`cmd/myapp/`); add more by mirroring the pattern.
-  - `internal/` — non-exportable application code (`buildinfo`, `cli`, `logging`).
-  - `pkg/` — exportable packages. Empty by default; add carefully — API stability matters here.
+  - `cmd/mcp-plane/` — the binary's `main` package; sets up signal handling
+    and delegates to `internal/cli`.
+  - `internal/`:
+    - `buildinfo` — version metadata stamped at link time.
+    - `cli` — cobra root command; default action runs the MCP server, the
+      only subcommand is `version`.
+    - `logging` — slog handler → stderr (stdout is the JSON-RPC transport).
+    - `config` — env-var loader (`PLANE_BASE_URL`, `PLANE_API_TOKEN`, `PLANE_WORKSPACE`).
+    - `plane` — pure HTTP client over the Plane REST API. No MCP types.
+    - `workpad` — render & upsert the workpad comment.
+    - `transfer` — cross-project issue transfer flow.
+    - `mcpserver` — wires every operation as an MCP tool and serves it
+      over stdio via `mark3labs/mcp-go`.
+  - `pkg/` — exportable packages; empty by default.
   - `scripts/` — small bash utilities (rename, coverage report).
-  - `docs/` — long-form documentation. Architecture, design notes, runbooks.
+  - `docs/` — `tools.md`, `architecture.md`, `verifying.md`.
 - **Generated outputs** (gitignored): `bin/`, `dist/`, `coverage.*`.
+
+## Configuration contract
+
+Three env vars, all read at startup by `internal/config`:
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `PLANE_API_TOKEN` | yes | — | placeholders (`changeme`, `tbd`, …) are rejected. |
+| `PLANE_WORKSPACE` | yes | — | workspace slug. |
+| `PLANE_BASE_URL` | yes | — | trimmed, no trailing slash. |
+
+The token is never logged and is redacted by `config.Settings.String()`.
 
 ## Build, test, develop
 
