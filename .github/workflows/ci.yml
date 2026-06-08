@@ -32,6 +32,10 @@ jobs:
         run: devbox run -- pnpm exec commitlint --config commitlint.config.cjs --from "$BASE_SHA" --to "$HEAD_SHA"
 
       - name: Run quality gates
+        env:
+          # Lychee falls back to anonymous GitHub requests without this, and
+          # private c3-oss repos return 404 to anonymous lookups.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: devbox run -- just quality
 
   test:
