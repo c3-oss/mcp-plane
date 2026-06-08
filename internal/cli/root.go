@@ -19,8 +19,8 @@ func newRootCmd() *cobra.Command {
 	var logLevel string
 
 	cmd := &cobra.Command{
-		Use:           "mcp-plane",
-		Short:         "MCP server (stdio) for the Plane REST API",
+		Use:   "mcp-plane",
+		Short: "MCP server (stdio) for the Plane REST API",
 		Long: "mcp-plane runs an MCP server over stdio that exposes the Plane REST API as tools.\n" +
 			"Configure with the PLANE_BASE_URL, PLANE_API_TOKEN, and PLANE_WORKSPACE environment\n" +
 			"variables, then register the binary with your MCP client.",

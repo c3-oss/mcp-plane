@@ -28,7 +28,6 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.S
 
 func ptrStr(s string) *string { return &s }
 func ptrInt(n int) *int       { return &n }
-func ptrI64(n int64) *int64   { return &n }
 func ptrBool(b bool) *bool    { return &b }
 func ptrSlice(s []string) *[]string {
 	return &s
@@ -236,8 +235,7 @@ func TestDownloadAttachmentSameHostAddsAuth(t *testing.T) {
 }
 
 func TestDownloadAttachmentExternalSkipsAuth(t *testing.T) {
-	var external *httptest.Server
-	external = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Empty(t, r.Header.Get("X-API-Key"))
 		_, _ = w.Write([]byte("blob"))
 	}))

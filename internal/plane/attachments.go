@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"strings"
 )
 
@@ -121,6 +122,9 @@ func (c *Client) UploadAttachmentBlob(ctx context.Context, uploadURL string, upl
 		uploadURL += "/"
 	}
 
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	for k, v := range uploadFields {
@@ -128,7 +132,10 @@ func (c *Client) UploadAttachmentBlob(ctx context.Context, uploadURL string, upl
 			return fmt.Errorf("plane: multipart field %s: %w", k, err)
 		}
 	}
-	fw, err := mw.CreateFormFile("file", name)
+	partHeader := textproto.MIMEHeader{}
+	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename=%q`, name))
+	partHeader.Set("Content-Type", mimeType)
+	fw, err := mw.CreatePart(partHeader)
 	if err != nil {
 		return fmt.Errorf("plane: multipart file part: %w", err)
 	}
@@ -137,9 +144,6 @@ func (c *Client) UploadAttachmentBlob(ctx context.Context, uploadURL string, upl
 	}
 	if err := mw.Close(); err != nil {
 		return fmt.Errorf("plane: close multipart: %w", err)
-	}
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, &buf)
