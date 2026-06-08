@@ -106,11 +106,24 @@ of `devbox shell`).
 ## Releases
 
 Push a tag `v<semver>` to `master` and `.github/workflows/release.yml`
-takes it from there: GoReleaser builds binaries for linux/darwin × amd64/arm64,
-publishes archives + SHA-256 checksums + per-archive SPDX SBOMs (via Syft),
-and Docker pushes a multi-arch image to GHCR.
+takes it from there:
 
-`just snapshot` is the local equivalent and writes everything to `dist/`.
+1. GoReleaser builds binaries for linux/darwin × amd64/arm64, publishes
+   archives + SHA-256 checksums + per-archive SPDX SBOMs (via Syft) to
+   GitHub Releases.
+2. `scripts/publish-npm.sh` stamps the tag version into the five
+   `npm/*/package.json` files, copies the freshly-built binaries into
+   the four platform sub-packages, and publishes them all to npm —
+   `@c3-oss/mcp-plane` (main shim) and `@c3-oss/mcp-plane-{darwin,linux}-{amd64,arm64}`.
+   This is what makes `npx -y @c3-oss/mcp-plane` work.
+3. Docker pushes a multi-arch image to GHCR.
+
+`just snapshot` is the local equivalent for steps 1+3 and writes
+everything to `dist/`. The npm step requires `NODE_AUTH_TOKEN` and is
+CI-only.
+
+The npm publish needs a granular `NPM_TOKEN` secret in the GitHub repo,
+scoped to the `@c3-oss` org with publish permission.
 
 ## What is intentionally *not* here
 

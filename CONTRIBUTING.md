@@ -46,5 +46,8 @@ range on each PR.
 
 ## Releasing
 
-Tag a `v<semver>` on `master`. CI publishes binaries, Docker images, and
-SBOMs automatically. See [`AGENTS.md`](AGENTS.md#releases) for details.
+Tag a `v<semver>` on `master`. CI publishes binaries, Docker images,
+SBOMs, and the npm package `@c3-oss/mcp-plane` (plus the four
+per-platform sub-packages) automatically. The npm step requires the
+repo to have an `NPM_TOKEN` secret scoped to the `@c3-oss` org. See
+[`AGENTS.md`](AGENTS.md#releases) for details.
