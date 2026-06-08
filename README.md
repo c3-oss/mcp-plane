@@ -19,18 +19,50 @@ Set three environment variables:
 
 ## Running
 
+The published npm package is the recommended path — no build step, no
+binary to manage manually:
+
+```bash
+PLANE_BASE_URL=... PLANE_API_TOKEN=... PLANE_WORKSPACE=... \
+  npx -y @c3-oss/mcp-plane
+```
+
+`@c3-oss/mcp-plane` is a thin JS shim that delegates to the prebuilt Go
+binary matching your platform (darwin/linux × amd64/arm64), distributed
+via npm `optionalDependencies`. No `postinstall` download.
+
+Or build locally:
+
 ```bash
 just build
 PLANE_BASE_URL=... PLANE_API_TOKEN=... PLANE_WORKSPACE=... ./bin/mcp-plane
 ```
 
-The binary speaks JSON-RPC 2.0 over stdio per the
+Either way, the binary speaks JSON-RPC 2.0 over stdio per the
 [MCP specification](https://modelcontextprotocol.io). Logs go to stderr;
 stdout is reserved for the protocol.
 
 ### Registering with an MCP client
 
-Claude Desktop / Claude Code (`~/.claude.json`):
+Claude Desktop / Claude Code (`~/.claude.json`), via npx:
+
+```json
+{
+  "mcpServers": {
+    "plane": {
+      "command": "npx",
+      "args": ["-y", "@c3-oss/mcp-plane"],
+      "env": {
+        "PLANE_BASE_URL": "https://plane.example.com",
+        "PLANE_API_TOKEN": "...",
+        "PLANE_WORKSPACE": "..."
+      }
+    }
+  }
+}
+```
+
+Or pointing at a locally-built binary:
 
 ```json
 {
