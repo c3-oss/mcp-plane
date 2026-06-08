@@ -41,6 +41,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # actions/setup-node@v6 enables Corepack when package.json declares
+      # `packageManager`, which prepares the pinned pnpm. Without pnpm on
+      # PATH, the action fails — so install pnpm explicitly first. The
+      # npm publish step itself uses `npm publish`, not pnpm.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      # package-manager-cache: false skips the pnpm-cache save step
+      # that fails on this job with "Path Validation Error: Path(s)
+      # specified in the action for caching do(es) not exist". We
+      # don't run `pnpm install` here so the cache directory never
+      # materializes; the publish step uses `npm publish` directly.
+      - name: Set up Node.js for npm publish
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Publish npm packages
+        run: ./scripts/publish-npm.sh
+        env:
+          # NPM_TOKEN is a granular access token scoped to the
+          # @c3-oss org; required to publish @c3-oss/mcp-plane and
+          # the four platform sub-packages.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 

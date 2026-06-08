@@ -1,0 +1,11 @@
+{
+  "name": "@c3-oss/mcp-plane-linux-arm64",
+  "version": "0.0.0-dev",
+  "description": "mcp-plane binary for Linux arm64",
+  "homepage": "https://github.com/c3-oss/mcp-plane",
+  "license": "CC0-1.0",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "files": ["bin/mcp-plane"],
+  "preferUnplugged": true
+}

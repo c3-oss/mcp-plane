@@ -1,0 +1,11 @@
+{
+  "name": "@c3-oss/mcp-plane-darwin-amd64",
+  "version": "0.0.0-dev",
+  "description": "mcp-plane binary for macOS amd64 (Intel)",
+  "homepage": "https://github.com/c3-oss/mcp-plane",
+  "license": "CC0-1.0",
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "files": ["bin/mcp-plane"],
+  "preferUnplugged": true
+}

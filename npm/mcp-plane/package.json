@@ -1,0 +1,37 @@
+{
+  "name": "@c3-oss/mcp-plane",
+  "version": "0.0.0-dev",
+  "type": "module",
+  "description": "MCP server (stdio) exposing the Plane REST API as tools",
+  "homepage": "https://github.com/c3-oss/mcp-plane",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/c3-oss/mcp-plane.git"
+  },
+  "license": "CC0-1.0",
+  "bin": {
+    "mcp-plane": "bin/mcp-plane.js"
+  },
+  "files": [
+    "bin/mcp-plane.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "optionalDependencies": {
+    "@c3-oss/mcp-plane-darwin-arm64": "0.0.0-dev",
+    "@c3-oss/mcp-plane-darwin-amd64": "0.0.0-dev",
+    "@c3-oss/mcp-plane-linux-amd64": "0.0.0-dev",
+    "@c3-oss/mcp-plane-linux-arm64": "0.0.0-dev"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "plane",
+    "plane.so",
+    "claude",
+    "cli"
+  ]
+}
