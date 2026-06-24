@@ -135,10 +135,7 @@ func (s *Server) handleAttachmentUpload(ctx context.Context, req mcp.CallToolReq
 	}
 	size := info.Size()
 
-	mimeType := mime.TypeByExtension(filepath.Ext(path))
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
-	}
+	mimeType := attachmentMimeType(path)
 
 	init, err := s.client.InitAttachmentUpload(ctx, projectID, issueID, displayName, &mimeType, &size)
 	if err != nil {
@@ -149,7 +146,7 @@ func (s *Server) handleAttachmentUpload(ctx context.Context, req mcp.CallToolReq
 		return mcp.NewToolResultErrorFromErr("init payload", err), nil
 	}
 
-	f, err := os.Open(path) //nolint:gosec // path is supplied by an MCP caller with file-system trust.
+	f, err := os.Open(path) // #nosec G304 -- path is supplied by an MCP caller with file-system trust.
 	if err != nil {
 		return mcp.NewToolResultErrorf("open file: %v", err), nil
 	}
@@ -225,6 +222,18 @@ func (s *Server) handleAttachmentRead(ctx context.Context, req mcp.CallToolReque
 		out["data_base64"] = base64.StdEncoding.EncodeToString(body)
 	}
 	return asTextResult(out)
+}
+
+func attachmentMimeType(path string) string {
+	mimeType := mime.TypeByExtension(filepath.Ext(path))
+	if mimeType == "" {
+		return "application/octet-stream"
+	}
+	mediaType, _, err := mime.ParseMediaType(mimeType)
+	if err != nil || mediaType == "" {
+		return mimeType
+	}
+	return mediaType
 }
 
 func parseInitPayload(init map[string]any) (assetID, uploadURL string, fields map[string]string, err error) {
