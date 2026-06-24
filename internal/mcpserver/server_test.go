@@ -130,6 +130,9 @@ func TestIssueListFilterSchemaAcceptsArraysAndStrings(t *testing.T) {
 		if tool.Name == "plane_issue_list" {
 			requireArrayOrStringFilterSchema(t, tool.InputSchema.Properties, "assignees")
 			requireArrayOrStringFilterSchema(t, tool.InputSchema.Properties, "labels")
+			compact, ok := tool.InputSchema.Properties["compact"].(map[string]any)
+			require.True(t, ok)
+			require.Equal(t, "boolean", compact["type"])
 			return
 		}
 	}
@@ -170,6 +173,89 @@ func TestIssueListAcceptsArrayAndStringFilters(t *testing.T) {
 			require.Equal(t, float64(0), payload["count"])
 		})
 	}
+}
+
+func TestIssueListCompactKeepsPaginationAndSummarizesIssues(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/workspaces/ws/projects/P/issues/", r.URL.Path)
+		_, _ = w.Write([]byte(`{
+			"count": 3,
+			"next_cursor": "cursor-2",
+			"results": [
+				{
+					"id": "i1",
+					"identifier": "TOOLS-1",
+					"sequence_id": 1,
+					"name": "Compact me",
+					"description_html": "<p>large</p>",
+					"priority": "high",
+					"state": {"id": "s1", "name": "In Progress", "group": "started", "color": "#00f", "description": "hidden"},
+					"labels": [{"id": "l1", "name": "Bug", "color": "#f00", "created_at": "hidden"}],
+					"assignees": [{"id": "u1", "display_name": "Ada", "email": "ada@example.com"}]
+				}
+			]
+		}`))
+	})
+
+	payload := callToolPayload(t, srv, "plane_issue_list", map[string]any{
+		"project_id": "P",
+		"compact":    true,
+	})
+
+	require.Equal(t, float64(3), payload["count"])
+	require.Equal(t, "cursor-2", payload["next_cursor"])
+	results, ok := payload["results"].([]any)
+	require.True(t, ok)
+	require.Len(t, results, 1)
+	issue, ok := results[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "i1", issue["id"])
+	require.Equal(t, "TOOLS-1", issue["identifier"])
+	require.Equal(t, float64(1), issue["sequence_id"])
+	require.Equal(t, "Compact me", issue["name"])
+	require.Equal(t, "high", issue["priority"])
+	require.NotContains(t, issue, "description_html")
+
+	state, ok := issue["state"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "s1", state["id"])
+	require.Equal(t, "In Progress", state["name"])
+	require.Equal(t, "started", state["group"])
+	require.Equal(t, "#00f", state["color"])
+	require.NotContains(t, state, "description")
+
+	labels, ok := issue["labels"].([]any)
+	require.True(t, ok)
+	require.Len(t, labels, 1)
+	label, ok := labels[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "l1", label["id"])
+	require.Equal(t, "Bug", label["name"])
+	require.NotContains(t, label, "created_at")
+
+	assignees, ok := issue["assignees"].([]any)
+	require.True(t, ok)
+	require.Len(t, assignees, 1)
+	assignee, ok := assignees[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "u1", assignee["id"])
+	require.Equal(t, "Ada", assignee["display_name"])
+	require.NotContains(t, assignee, "email")
+}
+
+func TestIssueListFullResponseRemainsDefault(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/workspaces/ws/projects/P/issues/", r.URL.Path)
+		_, _ = w.Write([]byte(`{"results":[{"id":"i1","description_html":"<p>large</p>"}],"count":1}`))
+	})
+
+	payload := callToolPayload(t, srv, "plane_issue_list", map[string]any{"project_id": "P"})
+	results, ok := payload["results"].([]any)
+	require.True(t, ok)
+	require.Len(t, results, 1)
+	issue, ok := results[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "<p>large</p>", issue["description_html"])
 }
 
 func TestNotFoundMapsToToolError(t *testing.T) {

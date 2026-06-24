@@ -37,6 +37,7 @@ func (s *Server) registerIssueTools() {
 		mcp.WithString("order_by", mcp.Description(`e.g. "-created_at"`)),
 		mcp.WithString("expand", mcp.Description(`Comma-separated fields to expand, e.g. "state,assignees".`)),
 		mcp.WithString("parent"),
+		mcp.WithBoolean("compact", mcp.Description("Return compact issue summaries plus pagination metadata.")),
 	), s.handleIssueList)
 
 	s.mcp.AddTool(mcp.NewTool("plane_issue_get",
@@ -113,6 +114,9 @@ func (s *Server) handleIssueList(ctx context.Context, req mcp.CallToolRequest) (
 	out, err := s.client.ListIssues(ctx, projectID, opts)
 	if err != nil {
 		return toolError(err), nil
+	}
+	if compact := argBoolPtr(args, "compact"); compact != nil && *compact {
+		return asTextResult(compactIssueList(out))
 	}
 	return asTextResult(out)
 }
@@ -201,4 +205,70 @@ func issueListIDsFilter(description string) mcp.PropertyOption {
 			map[string]any{"type": "string"},
 		}
 	}
+}
+
+func compactIssueList(in plane.IssueList) map[string]any {
+	out := make(map[string]any, len(in))
+	for key, value := range in {
+		if key != "results" {
+			out[key] = value
+		}
+	}
+
+	results, _ := in["results"].([]any)
+	compactResults := make([]any, 0, len(results))
+	for _, item := range results {
+		issue, ok := item.(map[string]any)
+		if !ok {
+			compactResults = append(compactResults, item)
+			continue
+		}
+		compactResults = append(compactResults, compactIssue(issue))
+	}
+	out["results"] = compactResults
+	return out
+}
+
+func compactIssue(issue map[string]any) map[string]any {
+	out := pickFields(issue, "id", "identifier", "sequence_id", "name", "priority")
+	if state, ok := issue["state"]; ok {
+		out["state"] = compactObject(state, "id", "name", "group", "color")
+	}
+	if labels, ok := issue["labels"]; ok {
+		out["labels"] = compactObjects(labels, "id", "name", "color")
+	}
+	if assignees, ok := issue["assignees"]; ok {
+		out["assignees"] = compactObjects(assignees, "id", "name", "display_name", "first_name", "last_name")
+	}
+	return out
+}
+
+func compactObjects(value any, keys ...string) any {
+	items, ok := value.([]any)
+	if !ok {
+		return compactObject(value, keys...)
+	}
+	out := make([]any, 0, len(items))
+	for _, item := range items {
+		out = append(out, compactObject(item, keys...))
+	}
+	return out
+}
+
+func compactObject(value any, keys ...string) any {
+	obj, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	return pickFields(obj, keys...)
+}
+
+func pickFields(obj map[string]any, keys ...string) map[string]any {
+	out := make(map[string]any, len(keys))
+	for _, key := range keys {
+		if value, ok := obj[key]; ok {
+			out[key] = value
+		}
+	}
+	return out
 }
