@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mime"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/c3-oss/mcp-plane/internal/plane"
@@ -270,17 +272,29 @@ func parseInitPayload(init map[string]any) (assetID, uploadURL string, fields ma
 
 func attachmentURL(att plane.Attachment, fallback string) string {
 	if attrs, ok := att["attributes"].(map[string]any); ok {
-		if u, ok := attrs["url"].(string); ok && u != "" {
+		if u, ok := attrs["url"].(string); ok && isDownloadableAttachmentURL(u) {
 			return u
 		}
 	}
-	if u, ok := att["asset"].(string); ok && u != "" {
+	if u, ok := att["asset"].(string); ok && isDownloadableAttachmentURL(u) {
 		return u
 	}
-	if u, ok := att["url"].(string); ok && u != "" {
+	if u, ok := att["url"].(string); ok && isDownloadableAttachmentURL(u) {
 		return u
 	}
 	return fallback
+}
+
+func isDownloadableAttachmentURL(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	if strings.HasPrefix(raw, "/") {
+		return true
+	}
+	u, err := url.Parse(raw)
+	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
 func makeUTF8(b []byte) string {
