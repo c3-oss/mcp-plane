@@ -407,6 +407,91 @@ func TestHealthReturnsStructuredEndpointErrors(t *testing.T) {
 	require.Contains(t, issues["error"], "403")
 }
 
+func TestAttachmentInitUploadSchemaWarnsAboutRawCredentials(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{}`))
+	})
+	c, err := client.NewInProcessClient(srv.MCPServer())
+	require.NoError(t, err)
+	require.NoError(t, c.Start(context.Background()))
+	t.Cleanup(func() { _ = c.Close() })
+
+	_, err = c.Initialize(context.Background(), mcp.InitializeRequest{})
+	require.NoError(t, err)
+	list, err := c.ListTools(context.Background(), mcp.ListToolsRequest{})
+	require.NoError(t, err)
+
+	for _, tool := range list.Tools {
+		if tool.Name == "plane_attachment_init_upload" {
+			require.Contains(t, tool.Description, "Prefer plane_attachment_upload")
+			require.Contains(t, tool.Description, "temporary S3 form credentials")
+			raw, ok := tool.InputSchema.Properties["raw"].(map[string]any)
+			require.True(t, ok)
+			require.Equal(t, "boolean", raw["type"])
+			require.Contains(t, raw["description"], "temporary S3 upload form credentials")
+			return
+		}
+	}
+	require.Fail(t, "plane_attachment_init_upload should be registered")
+}
+
+func TestAttachmentInitUploadDefaultsToCompactResult(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/workspaces/ws/projects/P/issues/I/issue-attachments/", r.URL.Path)
+		_, _ = w.Write([]byte(`{
+			"id": "asset-1",
+			"asset_url": "https://cdn.example.com/file.txt",
+			"name": "file.txt",
+			"upload_data": {
+				"url": "https://uploads.example.com/",
+				"fields": {
+					"key": "tmp/file.txt",
+					"policy": "secret-policy",
+					"x-amz-signature": "secret-signature"
+				}
+			}
+		}`))
+	})
+
+	payload := callToolPayload(t, srv, "plane_attachment_init_upload", map[string]any{
+		"project_id": "P",
+		"issue_id":   "I",
+		"name":       "file.txt",
+	})
+	require.Equal(t, "asset-1", payload["asset_id"])
+	require.Equal(t, "https://cdn.example.com/file.txt", payload["asset_url"])
+	require.Equal(t, "file.txt", payload["name"])
+	require.Equal(t, true, payload["raw_upload_credentials_omitted"])
+	require.Equal(t, true, payload["upload_credentials_available_with_raw"])
+	require.NotContains(t, payload, "upload_data")
+}
+
+func TestAttachmentInitUploadRawReturnsFullPayload(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/workspaces/ws/projects/P/issues/I/issue-attachments/", r.URL.Path)
+		_, _ = w.Write([]byte(`{
+			"id": "asset-1",
+			"upload_data": {
+				"url": "https://uploads.example.com/",
+				"fields": {"policy": "secret-policy"}
+			}
+		}`))
+	})
+
+	payload := callToolPayload(t, srv, "plane_attachment_init_upload", map[string]any{
+		"project_id": "P",
+		"issue_id":   "I",
+		"name":       "file.txt",
+		"raw":        true,
+	})
+	require.Equal(t, "asset-1", payload["id"])
+	uploadData, ok := payload["upload_data"].(map[string]any)
+	require.True(t, ok)
+	fields, ok := uploadData["fields"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "secret-policy", fields["policy"])
+}
+
 func TestAttachmentMimeTypeStripsParameters(t *testing.T) {
 	require.Equal(t, "text/plain", attachmentMimeType("notes.txt"))
 	require.Equal(t, "application/octet-stream", attachmentMimeType("archive.unknownext"))

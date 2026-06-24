@@ -23,12 +23,13 @@ func (s *Server) registerAttachmentTools() {
 	), s.handleAttachmentList)
 
 	s.mcp.AddTool(mcp.NewTool("plane_attachment_init_upload",
-		mcp.WithDescription("Low-level: request S3 upload credentials for a new attachment."),
+		mcp.WithDescription("Advanced/low-level: request attachment upload metadata. Prefer plane_attachment_upload; raw=true returns temporary S3 form credentials."),
 		mcp.WithString("project_id", mcp.Required()),
 		mcp.WithString("issue_id", mcp.Required()),
 		mcp.WithString("name", mcp.Required()),
 		mcp.WithString("file_type"),
 		mcp.WithNumber("size"),
+		mcp.WithBoolean("raw", mcp.Description("Return the full Plane payload, including temporary S3 upload form credentials.")),
 	), s.handleAttachmentInitUpload)
 
 	s.mcp.AddTool(mcp.NewTool("plane_attachment_complete_upload",
@@ -90,7 +91,10 @@ func (s *Server) handleAttachmentInitUpload(ctx context.Context, req mcp.CallToo
 	if err != nil {
 		return toolError(err), nil
 	}
-	return asTextResult(out)
+	if raw := argBoolPtr(args, "raw"); raw != nil && *raw {
+		return asTextResult(out)
+	}
+	return asTextResult(compactAttachmentInitUpload(out))
 }
 
 func (s *Server) handleAttachmentCompleteUpload(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -268,6 +272,89 @@ func parseInitPayload(init map[string]any) (assetID, uploadURL string, fields ma
 		}
 	}
 	return assetID, uploadURL, fields, nil
+}
+
+func compactAttachmentInitUpload(init map[string]any) map[string]any {
+	out := map[string]any{
+		"raw_upload_credentials_omitted": true,
+	}
+	if assetID := initUploadAssetID(init); assetID != "" {
+		out["asset_id"] = assetID
+	}
+	if assetURL := initUploadAssetURL(init); assetURL != "" {
+		out["asset_url"] = assetURL
+	}
+	if name := initUploadName(init); name != "" {
+		out["name"] = name
+	}
+	if _, ok := init["upload_data"]; ok {
+		out["upload_credentials_available_with_raw"] = true
+	}
+	return out
+}
+
+func initUploadAssetID(init map[string]any) string {
+	for _, key := range []string{"id", "asset_id"} {
+		if value, ok := init[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	if attachment, ok := init["attachment"].(map[string]any); ok {
+		for _, key := range []string{"id", "asset_id"} {
+			if value, ok := attachment[key].(string); ok && value != "" {
+				return value
+			}
+		}
+	}
+	return ""
+}
+
+func initUploadAssetURL(init map[string]any) string {
+	for _, key := range []string{"asset_url", "asset"} {
+		if value, ok := init[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	if attachment, ok := init["attachment"].(map[string]any); ok {
+		for _, key := range []string{"asset_url", "asset"} {
+			if value, ok := attachment[key].(string); ok && value != "" {
+				return value
+			}
+		}
+		if attrs, ok := attachment["attributes"].(map[string]any); ok {
+			if value, ok := attrs["url"].(string); ok && value != "" {
+				return value
+			}
+		}
+	}
+	if attrs, ok := init["attributes"].(map[string]any); ok {
+		if value, ok := attrs["url"].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func initUploadName(init map[string]any) string {
+	if value, ok := init["name"].(string); ok && value != "" {
+		return value
+	}
+	if attachment, ok := init["attachment"].(map[string]any); ok {
+		if value, ok := attachment["name"].(string); ok && value != "" {
+			return value
+		}
+		if attrs, ok := attachment["attributes"].(map[string]any); ok {
+			if value, ok := attrs["name"].(string); ok && value != "" {
+				return value
+			}
+		}
+	}
+	if attrs, ok := init["attributes"].(map[string]any); ok {
+		if value, ok := attrs["name"].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func attachmentURL(att plane.Attachment, fallback string) string {

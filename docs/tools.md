@@ -145,11 +145,21 @@ Required: `project_id`, `issue_id`.
 
 POST `/projects/{project_id}/issues/{issue_id}/issue-attachments/`.
 
-Low-level: returns `{ id, upload_data: { url, fields: {...} } }`. Use
-`plane_attachment_upload` for the full init → s3 → complete flow.
+Advanced low-level step for custom upload clients. Use `plane_attachment_upload`
+for normal uploads.
 
 Required: `project_id`, `issue_id`, `name`.
-Optional: `file_type` (mime type), `size` (number, bytes).
+Optional: `file_type` (mime type), `size` (number, bytes), `raw` (boolean).
+
+By default, returns compact metadata such as:
+
+```json
+{ "asset_id": "...", "asset_url": "...", "raw_upload_credentials_omitted": true }
+```
+
+With `raw: true`, returns the full Plane init payload, including
+`upload_data.url` and temporary S3 form credential fields needed by custom
+multipart clients.
 
 ### `plane_attachment_complete_upload`
 
