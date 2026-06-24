@@ -6,6 +6,21 @@ calling agent decides how to recover.
 
 All endpoints are relative to `https://<PLANE_BASE_URL>/api/v1/workspaces/<PLANE_WORKSPACE>/`.
 
+## Projects
+
+### `plane_project_list`
+
+GET `/projects/`.
+
+Returns compact project records:
+
+```json
+{ "results": [{ "id": "...", "identifier": "TOOLS", "name": "Squad Web/Tools" }] }
+```
+
+Use `id` as `project_id` in project-scoped tools. Use `identifier` as the
+project code in cross-project transfer arguments and issue identifiers.
+
 ## Issues
 
 ### `plane_issue_create`
@@ -186,9 +201,8 @@ Returns:
 }
 ```
 
-Project codes are required because there is no project-directory lookup;
-without them the cross-link comments would say "Transferred from `<uuid>`"
-instead of the readable identifier.
+Project codes are required so cross-link comments use readable identifiers.
+Use `plane_project_list` to discover project ids and identifiers.
 
 ### `plane_issue_workpad_upsert`
 
@@ -212,5 +226,6 @@ Returns `{ base_url, workspace }`. Never echoes the api token.
 
 ### `plane_health`
 
-Required: `project_id`. Runs `plane_state_list` against it to verify
-credentials end-to-end. Returns `{ ok: true }` on success.
+Required: `project_id`. Probes the states and issues endpoints for that
+project and returns `{ ok, checks, warnings }` diagnostics. Empty states or
+endpoint failures produce `ok: false`.

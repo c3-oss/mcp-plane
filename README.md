@@ -81,11 +81,12 @@ Or pointing at a locally-built binary:
 
 ## Tools
 
-22 tools registered. See [`docs/tools.md`](docs/tools.md) for the full table
+23 tools registered. See [`docs/tools.md`](docs/tools.md) for the full table
 with input schemas; summary below.
 
 | Group | Tools |
 |---|---|
+| Projects | `plane_project_list` |
 | Issues | `plane_issue_create`, `plane_issue_list`, `plane_issue_get`, `plane_issue_get_by_identifier`, `plane_issue_update`, `plane_issue_delete` |
 | States / Labels | `plane_state_list`, `plane_label_list` |
 | Comments | `plane_comment_list`, `plane_comment_add`, `plane_comment_update`, `plane_comment_delete` |
@@ -94,9 +95,10 @@ with input schemas; summary below.
 | Higher-level | `plane_issue_transfer`, `plane_issue_workpad_upsert` |
 | Sanity | `plane_workspace_info`, `plane_health` |
 
-All inputs accept plane-native ids (uuid for project/issue/state/label, or
-the workspace identifier like `PROJ-7` for the by-identifier lookups). No
-user-directory mapping is performed; the caller passes plane ids directly.
+Inputs accept plane-native ids (uuid for project/issue/state/label, or the
+workspace identifier like `PROJ-7` for the by-identifier lookups).
+`plane_project_list` returns project ids and identifiers for project-scoped
+tools.
 
 ## Verifying
 

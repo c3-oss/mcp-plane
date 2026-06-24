@@ -183,6 +183,17 @@ func TestListIssuesPassesDictThrough(t *testing.T) {
 	require.Equal(t, "x", out["next_cursor"])
 }
 
+func TestListProjectsUnwrapsResults(t *testing.T) {
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/workspaces/ws/projects/", r.URL.Path)
+		_, _ = w.Write([]byte(`{"results":[{"id":"p1","identifier":"TOOLS","name":"Tools"}]}`))
+	})
+	projects, err := c.ListProjects(context.Background())
+	require.NoError(t, err)
+	require.Len(t, projects, 1)
+	require.Equal(t, "TOOLS", projects[0]["identifier"])
+}
+
 func TestListStatesUnwrapsResults(t *testing.T) {
 	c, _ := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"results":[{"id":"s","group":"completed"}]}`))

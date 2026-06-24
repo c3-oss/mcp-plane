@@ -44,6 +44,7 @@ func (s *Server) Serve(ctx context.Context) error {
 }
 
 func (s *Server) registerAll() {
+	s.registerProjectTools()
 	s.registerIssueTools()
 	s.registerStateTools()
 	s.registerLabelTools()

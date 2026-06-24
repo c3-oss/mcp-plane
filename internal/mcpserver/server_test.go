@@ -69,6 +69,7 @@ func TestToolsListIncludesEveryRegisteredTool(t *testing.T) {
 		names[tool.Name] = true
 	}
 	for _, want := range []string{
+		"plane_project_list",
 		"plane_issue_create", "plane_issue_list", "plane_issue_get", "plane_issue_get_by_identifier",
 		"plane_issue_update", "plane_issue_delete",
 		"plane_state_list", "plane_label_list",
@@ -153,6 +154,26 @@ func TestWorkspaceInfoDoesNotEchoToken(t *testing.T) {
 	require.NotContains(t, text.Text, "token")
 	require.NotContains(t, text.Text, "X-API-Key")
 	require.Contains(t, text.Text, "ws")
+}
+
+func TestProjectListReturnsCompactResults(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/workspaces/ws/projects/", r.URL.Path)
+		_, _ = w.Write([]byte(`{"results":[{"id":"p1","identifier":"TOOLS","name":"Tools","description":"hidden"},{"id":"p2","identifier":"STAFF","name":"Staff","extra":true}]}`))
+	})
+
+	payload := callToolPayload(t, srv, "plane_project_list", nil)
+	results, ok := payload["results"].([]any)
+	require.True(t, ok)
+	require.Len(t, results, 2)
+	first, ok := results[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, map[string]any{
+		"id":         "p1",
+		"identifier": "TOOLS",
+		"name":       "Tools",
+	}, first)
+	require.NotContains(t, first, "description")
 }
 
 func TestHealthReportsEndpointDiagnostics(t *testing.T) {
