@@ -492,6 +492,42 @@ func TestAttachmentInitUploadRawReturnsFullPayload(t *testing.T) {
 	require.Equal(t, "secret-policy", fields["policy"])
 }
 
+func TestAttachmentCompleteUploadReturnsStructuredSuccessForNoContent(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPatch, r.Method)
+		require.Equal(t, "/api/v1/workspaces/ws/projects/P/issues/I/issue-attachments/asset-1/", r.URL.Path)
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	payload := callToolPayload(t, srv, "plane_attachment_complete_upload", map[string]any{
+		"project_id": "P",
+		"issue_id":   "I",
+		"asset_id":   "asset-1",
+	})
+	require.Equal(t, true, payload["completed"])
+	require.Equal(t, "asset-1", payload["asset_id"])
+	require.NotContains(t, payload, "result")
+}
+
+func TestAttachmentCompleteUploadPreservesPlaneResult(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPatch, r.Method)
+		require.Equal(t, "/api/v1/workspaces/ws/projects/P/issues/I/issue-attachments/asset-1/", r.URL.Path)
+		_, _ = w.Write([]byte(`{"id":"asset-1","status":"uploaded"}`))
+	})
+
+	payload := callToolPayload(t, srv, "plane_attachment_complete_upload", map[string]any{
+		"project_id": "P",
+		"issue_id":   "I",
+		"asset_id":   "asset-1",
+	})
+	require.Equal(t, true, payload["completed"])
+	require.Equal(t, "asset-1", payload["asset_id"])
+	result, ok := payload["result"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "uploaded", result["status"])
+}
+
 func TestAttachmentMimeTypeStripsParameters(t *testing.T) {
 	require.Equal(t, "text/plain", attachmentMimeType("notes.txt"))
 	require.Equal(t, "application/octet-stream", attachmentMimeType("archive.unknownext"))
