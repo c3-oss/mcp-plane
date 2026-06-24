@@ -131,3 +131,8 @@ func TestWorkspaceInfoDoesNotEchoToken(t *testing.T) {
 	require.NotContains(t, text.Text, "X-API-Key")
 	require.Contains(t, text.Text, "ws")
 }
+
+func TestAttachmentMimeTypeStripsParameters(t *testing.T) {
+	require.Equal(t, "text/plain", attachmentMimeType("notes.txt"))
+	require.Equal(t, "application/octet-stream", attachmentMimeType("archive.unknownext"))
+}
