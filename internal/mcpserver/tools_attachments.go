@@ -114,7 +114,7 @@ func (s *Server) handleAttachmentCompleteUpload(ctx context.Context, req mcp.Cal
 	if err != nil {
 		return toolError(err), nil
 	}
-	return asTextResult(out)
+	return asTextResult(completeAttachmentUploadResult(assetID, out))
 }
 
 func (s *Server) handleAttachmentUpload(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -289,6 +289,17 @@ func compactAttachmentInitUpload(init map[string]any) map[string]any {
 	}
 	if _, ok := init["upload_data"]; ok {
 		out["upload_credentials_available_with_raw"] = true
+	}
+	return out
+}
+
+func completeAttachmentUploadResult(assetID string, planeResult map[string]any) map[string]any {
+	out := map[string]any{
+		"completed": true,
+		"asset_id":  assetID,
+	}
+	if len(planeResult) > 0 {
+		out["result"] = planeResult
 	}
 	return out
 }

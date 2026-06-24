@@ -166,6 +166,8 @@ multipart clients.
 PATCH `/projects/{project_id}/issues/{issue_id}/issue-attachments/{asset_id}/`.
 
 Required: `project_id`, `issue_id`, `asset_id`.
+Returns `{ "completed": true, "asset_id": "..." }`. When Plane returns a
+non-empty response body, it is available under `result`.
 
 ### `plane_attachment_upload`
 
