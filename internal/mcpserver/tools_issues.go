@@ -27,8 +27,8 @@ func (s *Server) registerIssueTools() {
 		mcp.WithString("cursor"),
 		mcp.WithBoolean("archived"),
 		mcp.WithString("state_group", mcp.Description(`Plane state group: "backlog", "unstarted", "started", "completed", "cancelled".`)),
-		mcp.WithString("assignees", mcp.Description("Comma-separated assignee UUIDs.")),
-		mcp.WithString("labels", mcp.Description("Comma-separated label UUIDs.")),
+		mcp.WithAny("assignees", issueListIDsFilter("Assignee Plane user UUIDs. Use an array; comma-separated string is accepted.")),
+		mcp.WithAny("labels", issueListIDsFilter("Label UUIDs. Use an array; comma-separated string is accepted.")),
 		mcp.WithString("priority"),
 		mcp.WithString("created_at", mcp.Description(`Range string, e.g. "2026-04-01;after,2026-04-30;before".`)),
 		mcp.WithString("target_date"),
@@ -99,8 +99,8 @@ func (s *Server) handleIssueList(ctx context.Context, req mcp.CallToolRequest) (
 		Cursor:      argStringPtr(args, "cursor"),
 		Archived:    argBoolPtr(args, "archived"),
 		StateGroup:  argStringPtr(args, "state_group"),
-		Assignees:   argStringPtr(args, "assignees"),
-		Labels:      argStringPtr(args, "labels"),
+		Assignees:   argStringOrStringSliceCSVPtr(args, "assignees"),
+		Labels:      argStringOrStringSliceCSVPtr(args, "labels"),
 		Priority:    argStringPtr(args, "priority"),
 		CreatedAt:   argStringPtr(args, "created_at"),
 		TargetDate:  argStringPtr(args, "target_date"),
@@ -187,5 +187,18 @@ func issueOptionsFromArgs(args map[string]any) plane.IssueOptions {
 		State:           argStringPtr(args, "state"),
 		Labels:          argStringSlicePtr(args, "labels"),
 		Parent:          argStringPtr(args, "parent"),
+	}
+}
+
+func issueListIDsFilter(description string) mcp.PropertyOption {
+	return func(schema map[string]any) {
+		schema["description"] = description
+		schema["oneOf"] = []any{
+			map[string]any{
+				"type":  "array",
+				"items": map[string]any{"type": "string"},
+			},
+			map[string]any{"type": "string"},
+		}
 	}
 }

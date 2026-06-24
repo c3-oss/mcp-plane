@@ -112,6 +112,66 @@ func TestStateListRoundTripsThroughInProcessClient(t *testing.T) {
 	require.Len(t, results, 1)
 }
 
+func TestIssueListFilterSchemaAcceptsArraysAndStrings(t *testing.T) {
+	srv := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{}`))
+	})
+	c, err := client.NewInProcessClient(srv.MCPServer())
+	require.NoError(t, err)
+	require.NoError(t, c.Start(context.Background()))
+	t.Cleanup(func() { _ = c.Close() })
+
+	_, err = c.Initialize(context.Background(), mcp.InitializeRequest{})
+	require.NoError(t, err)
+	list, err := c.ListTools(context.Background(), mcp.ListToolsRequest{})
+	require.NoError(t, err)
+
+	for _, tool := range list.Tools {
+		if tool.Name == "plane_issue_list" {
+			requireArrayOrStringFilterSchema(t, tool.InputSchema.Properties, "assignees")
+			requireArrayOrStringFilterSchema(t, tool.InputSchema.Properties, "labels")
+			return
+		}
+	}
+	require.Fail(t, "plane_issue_list should be registered")
+}
+
+func TestIssueListAcceptsArrayAndStringFilters(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		args map[string]any
+	}{
+		{
+			name: "arrays",
+			args: map[string]any{
+				"project_id": "P",
+				"assignees":  []any{"u1", "u2"},
+				"labels":     []any{"l1", "l2"},
+			},
+		},
+		{
+			name: "strings",
+			args: map[string]any{
+				"project_id": "P",
+				"assignees":  "u1,u2",
+				"labels":     "l1,l2",
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, "/api/v1/workspaces/ws/projects/P/issues/", r.URL.Path)
+				require.Equal(t, "u1,u2", r.URL.Query().Get("assignees"))
+				require.Equal(t, "l1,l2", r.URL.Query().Get("labels"))
+				_, _ = w.Write([]byte(`{"results":[],"count":0}`))
+			})
+
+			payload := callToolPayload(t, srv, "plane_issue_list", tt.args)
+			require.Equal(t, float64(0), payload["count"])
+		})
+	}
+}
+
 func TestNotFoundMapsToToolError(t *testing.T) {
 	srv := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, `{"detail":"missing"}`, http.StatusNotFound)
@@ -154,6 +214,24 @@ func TestWorkspaceInfoDoesNotEchoToken(t *testing.T) {
 	require.NotContains(t, text.Text, "token")
 	require.NotContains(t, text.Text, "X-API-Key")
 	require.Contains(t, text.Text, "ws")
+}
+
+func requireArrayOrStringFilterSchema(t *testing.T, props map[string]any, name string) {
+	t.Helper()
+	prop, ok := props[name].(map[string]any)
+	require.True(t, ok)
+	oneOf, ok := prop["oneOf"].([]any)
+	require.True(t, ok)
+	require.Len(t, oneOf, 2)
+	arraySchema, ok := oneOf[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "array", arraySchema["type"])
+	items, ok := arraySchema["items"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "string", items["type"])
+	stringSchema, ok := oneOf[1].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "string", stringSchema["type"])
 }
 
 func TestProjectListReturnsCompactResults(t *testing.T) {

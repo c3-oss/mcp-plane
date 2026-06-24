@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -29,17 +30,21 @@ func argStringPtr(args map[string]any, key string) *string {
 // stored under key. Non-string items are skipped. Returns nil if key is
 // missing or not an array.
 func argStringSlicePtr(args map[string]any, key string) *[]string {
-	raw, ok := args[key].([]any)
-	if !ok {
+	switch raw := args[key].(type) {
+	case []any:
+		out := make([]string, 0, len(raw))
+		for _, item := range raw {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return &out
+	case []string:
+		out := append([]string(nil), raw...)
+		return &out
+	default:
 		return nil
 	}
-	out := make([]string, 0, len(raw))
-	for _, item := range raw {
-		if s, ok := item.(string); ok {
-			out = append(out, s)
-		}
-	}
-	return &out
 }
 
 // argStringSlice returns []string from args[key], or nil. Useful when the
@@ -49,6 +54,20 @@ func argStringSlice(args map[string]any, key string) []string {
 		return *p
 	}
 	return nil
+}
+
+// argStringOrStringSliceCSVPtr accepts either a comma-separated string or an
+// array of strings and returns the query-string form expected by Plane.
+func argStringOrStringSliceCSVPtr(args map[string]any, key string) *string {
+	if v, ok := args[key].(string); ok {
+		return &v
+	}
+	values := argStringSlice(args, key)
+	if len(values) == 0 {
+		return nil
+	}
+	joined := strings.Join(values, ",")
+	return &joined
 }
 
 // argIntPtr coerces args[key] from float64 (JSON's number) into *int.

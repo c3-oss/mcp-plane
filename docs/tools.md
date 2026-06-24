@@ -41,11 +41,13 @@ GET `/projects/{project_id}/issues/`.
 Required: `project_id`.
 Optional: `per_page` (number), `cursor` (string), `archived` (boolean),
 `state_group` (one of `backlog`, `unstarted`, `started`, `completed`,
-`cancelled`), `assignees`, `labels`, `priority`, `created_at`, `target_date`,
-`completed_at`, `name`, `order_by`, `expand`, `parent` (all strings).
+`cancelled`), `assignees` (array of plane user ids), `labels` (array of label
+ids), `priority`, `created_at`, `target_date`, `completed_at`, `name`,
+`order_by`, `expand`, `parent` (strings).
 
 Date filters use plane's `<value>;<op>` syntax — e.g.
 `"2026-04-01;after,2026-04-30;before"`.
+Comma-separated strings are also accepted for `assignees` and `labels`.
 
 Returns `{ "results": [...], "count": n, "next_cursor": "..." }`.
 
