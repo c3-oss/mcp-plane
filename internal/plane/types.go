@@ -23,6 +23,9 @@ type Activity = map[string]any
 // Attachment represents an issue attachment metadata record.
 type Attachment = map[string]any
 
+// Project represents a Plane project metadata record.
+type Project = map[string]any
+
 // IssueOptions are optional fields accepted by CreateIssue / UpdateIssue.
 // Pointer fields preserve the distinction between "absent" and "empty":
 // a nil pointer means "do not send"; a non-nil pointer means "send this value

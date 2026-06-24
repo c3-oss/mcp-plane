@@ -35,7 +35,7 @@ printf '%s\n%s\n' \
   | jq .
 ```
 
-Expect 22 tools in the second response's `result.tools`.
+Expect 23 tools in the second response's `result.tools`.
 
 ### Call a tool
 

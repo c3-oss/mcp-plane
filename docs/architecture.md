@@ -18,8 +18,9 @@ internal/config                    PLANE_* env loading with placeholder rejectio
 internal/plane (.Client)           net/http client; auth header; 30 s timeout
    │                               ──► download client (60 s) for attachments
    ▼
-internal/mcpserver                 22 tools registered; arg-coercion helpers
+internal/mcpserver                 23 tools registered; arg-coercion helpers
    │                               and error mapping to mcp.CallToolResult
+   ├── tools_projects.go           1 tool
    ├── tools_issues.go             6 tools
    ├── tools_states.go             1 tool
    ├── tools_labels.go             1 tool
