@@ -1,8 +1,9 @@
 # mcp-plane tool reference
 
-Every tool returns a single text content block whose body is a compact JSON
-document. Errors map to MCP tool-error results (`isError: true`) — the
-calling agent decides how to recover.
+Every tool returns a single text content block whose body is a minified JSON
+document. Read tools document whether they return the Plane API payload or a
+compact projection. Errors map to MCP tool-error results (`isError: true`) —
+the calling agent decides how to recover.
 
 All endpoints are relative to `https://<PLANE_BASE_URL>/api/v1/workspaces/<PLANE_WORKSPACE>/`.
 
@@ -43,13 +44,16 @@ Optional: `per_page` (number), `cursor` (string), `archived` (boolean),
 `state_group` (one of `backlog`, `unstarted`, `started`, `completed`,
 `cancelled`), `assignees` (array of plane user ids), `labels` (array of label
 ids), `priority`, `created_at`, `target_date`, `completed_at`, `name`,
-`order_by`, `expand`, `parent` (strings).
+`order_by`, `expand`, `parent` (strings), `compact` (boolean).
 
 Date filters use plane's `<value>;<op>` syntax — e.g.
 `"2026-04-01;after,2026-04-30;before"`.
 Comma-separated strings are also accepted for `assignees` and `labels`.
 
-Returns `{ "results": [...], "count": n, "next_cursor": "..." }`.
+Returns the Plane issue list payload, including pagination metadata such as
+`count` and `next_cursor`. With `compact: true`, each issue result is projected
+to identifiers, name, state, priority, labels, and assignees while pagination
+metadata remains available.
 
 ### `plane_issue_get`
 
