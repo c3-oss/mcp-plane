@@ -10,7 +10,7 @@ permissions:
 jobs:
   quality:
     name: commit + docs + secrets
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -41,7 +41,7 @@ jobs:
 
   test:
     name: tidy + vet + test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -81,7 +81,7 @@ jobs:
 
   lint:
     name: golangci-lint
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -97,7 +97,7 @@ jobs:
 
   security:
     name: gosec + govulncheck
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -116,11 +116,15 @@ jobs:
 
   build:
     name: build / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            runs-on: blacksmith-2vcpu-ubuntu-2404
+          - os: macos-latest
+            runs-on: blacksmith-6vcpu-macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
