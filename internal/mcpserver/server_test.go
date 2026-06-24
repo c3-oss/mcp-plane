@@ -136,3 +136,31 @@ func TestAttachmentMimeTypeStripsParameters(t *testing.T) {
 	require.Equal(t, "text/plain", attachmentMimeType("notes.txt"))
 	require.Equal(t, "application/octet-stream", attachmentMimeType("archive.unknownext"))
 }
+
+func TestAttachmentURLFallsBackForRelativeAssetKey(t *testing.T) {
+	fallback := "/api/v1/workspaces/ws/projects/P/issues/I/issue-attachments/A"
+	got := attachmentURL(plane.Attachment{
+		"id":    "A",
+		"asset": "uploads/metadata-probe.txt",
+		"attributes": map[string]any{
+			"name": "metadata-probe.txt",
+			"size": 11,
+			"type": "text/plain",
+		},
+	}, fallback)
+	require.Equal(t, fallback, got)
+}
+
+func TestAttachmentURLUsesDownloadableCandidates(t *testing.T) {
+	fallback := "/fallback"
+	require.Equal(t, "https://cdn.example.com/file.txt", attachmentURL(plane.Attachment{
+		"asset": "https://cdn.example.com/file.txt",
+	}, fallback))
+	require.Equal(t, "/api/assets/file.txt", attachmentURL(plane.Attachment{
+		"url": "/api/assets/file.txt",
+	}, fallback))
+	require.Equal(t, "https://attrs.example.com/file.txt", attachmentURL(plane.Attachment{
+		"attributes": map[string]any{"url": "https://attrs.example.com/file.txt"},
+		"asset":      "uploads/file.txt",
+	}, fallback))
+}
