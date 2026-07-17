@@ -119,11 +119,12 @@ takes it from there:
 3. Docker pushes a multi-arch image to GHCR.
 
 `just snapshot` is the local equivalent for steps 1+3 and writes
-everything to `dist/`. The npm step requires `NODE_AUTH_TOKEN` and is
-CI-only.
+everything to `dist/`. The npm step is CI-only.
 
-The npm publish needs a granular `NPM_TOKEN` secret in the GitHub repo,
-scoped to the `@c3-oss` org with publish permission.
+The npm publish authenticates via OIDC trusted publishing: the release job
+exchanges its `id-token` for npm credentials on a GitHub-hosted runner, so
+no `NPM_TOKEN` secret is needed. Each package name has a trusted publisher
+registered on npm for `c3-oss/mcp-plane` + `release.yml`.
 
 ## What is intentionally *not* here
 
