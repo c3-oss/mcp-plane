@@ -22,7 +22,7 @@
   "shell": {
     "init_hook": [
       "export GOBIN=$PWD/bin",
-      "export PATH=$GOBIN:$PATH",
+      "export PATH=$PATH:$GOBIN",
       "if [ -z \"${CI:-}\" ]; then pnpm install --frozen-lockfile && pnpm exec husky; fi"
     ]
   }
