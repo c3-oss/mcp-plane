@@ -28,6 +28,9 @@ jobs:
         id: filter
         if: github.event_name == 'pull_request'
         with:
+          # The default 'some' quantifier matches a file against any single
+          # pattern, which makes '**' swallow the negations below.
+          predicate-quantifier: every
           filters: |
             code:
               - '**'
