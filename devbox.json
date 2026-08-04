@@ -5,6 +5,8 @@
     "golangci-lint@2.12",
     "gofumpt@0.10",
     "gitleaks@8.28",
+    "gosec@2.28.0",
+    "govulncheck@1.6.0",
     "lychee@0.23",
     "markdownlint-cli2@0.21",
     "syft@1.18",
@@ -21,9 +23,7 @@
     "init_hook": [
       "export GOBIN=$PWD/bin",
       "export PATH=$GOBIN:$PATH",
-      "if [ -z \"${CI:-}\" ]; then pnpm install --frozen-lockfile && pnpm exec husky; fi",
-      "if [ ! -x \"$GOBIN/govulncheck\" ]; then go install golang.org/x/vuln/cmd/govulncheck@latest; fi",
-      "if [ ! -x \"$GOBIN/gosec\" ]; then go install github.com/securego/gosec/v2/cmd/gosec@latest; fi"
+      "if [ -z \"${CI:-}\" ]; then pnpm install --frozen-lockfile && pnpm exec husky; fi"
     ]
   }
 }
