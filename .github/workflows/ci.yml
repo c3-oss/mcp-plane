@@ -48,6 +48,8 @@ jobs:
         with:
           fetch-depth: 0
 
+      # go.mod and devbox.lock select the toolchain, which Go downloads into
+      # the module cache without recording it in go.sum.
       - name: Restore Go modules and build cache
         id: go-cache
         uses: actions/cache/restore@v6
@@ -55,9 +57,9 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-go-${{ hashFiles('go.mod', 'go.sum', 'devbox.lock') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-${{ runner.arch }}-go-
 
       - name: Install devbox
         uses: jetify-com/devbox-install-action@v0.15.0
@@ -141,13 +143,17 @@ jobs:
       # Saved explicitly rather than through actions/cache@v6, whose post step
       # is post-if: success() and would be skipped whenever the aggregator
       # below fails the job. The primary key is immutable once written, so the
-      # save only runs when a step that actually populates the cache completed.
+      # save only runs once every step that populates the cache succeeded —
+      # a failed tidy-check leaves go.mod/go.sum rewritten, which would put the
+      # resulting tree under a key computed from the pre-tidy files.
       - name: Save Go modules and build cache
         if: >-
           always() && !cancelled() &&
           steps.go-cache.outcome == 'success' &&
           steps.go-cache.outputs.cache-hit != 'true' &&
-          (steps.test.outcome == 'success' || steps.build.outcome == 'success')
+          steps.tidy-check.outcome == 'success' &&
+          steps.test.outcome == 'success' &&
+          steps.build.outcome == 'success'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -193,9 +199,9 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-go-${{ hashFiles('go.mod', 'go.sum', 'devbox.lock') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-${{ runner.arch }}-go-
 
       - name: Install devbox
         uses: jetify-com/devbox-install-action@v0.15.0
