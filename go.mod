@@ -2,7 +2,7 @@ module github.com/c3-oss/mcp-plane
 
 go 1.26.2
 
-toolchain go1.26.4
+toolchain go1.26.5
 
 require (
 	github.com/mark3labs/mcp-go v0.55.1
