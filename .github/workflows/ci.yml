@@ -3,19 +3,56 @@ name: CI
 on:
   pull_request:
     branches: [master]
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  quality:
-    name: commit + docs + secrets
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ github.event_name == 'push' || steps.filter.outputs.code == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!LICENSE'
+
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    needs: changes
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Restored before devbox: the init_hook runs during the devbox install
+      # and already reads from the Go module cache.
+      - name: Cache Go modules and build
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Install devbox
         uses: jetify-com/devbox-install-action@v0.15.0
@@ -27,130 +64,118 @@ jobs:
         run: devbox run -- pnpm install --frozen-lockfile
 
       - name: Lint commit messages
+        id: commitlint
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: devbox run -- pnpm exec commitlint --config commitlint.config.cjs --from "$BASE_SHA" --to "$HEAD_SHA"
 
       - name: Run quality gates
+        id: quality
+        continue-on-error: true
         env:
           # Lychee falls back to anonymous GitHub requests without this, and
           # private c3-oss repos return 404 to anonymous lookups.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: devbox run -- just quality
 
-  test:
-    name: tidy + vet + test
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install devbox
-        uses: jetify-com/devbox-install-action@v0.15.0
-        with:
-          enable-cache: true
-          devbox-version: 0.17.4
-
-      - name: Cache Go modules and build
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ubuntu-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ubuntu-go-
-
       - name: Tidy check
+        id: tidy-check
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
         run: devbox run -- just tidy-check
 
       - name: Vet
+        id: vet
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
         run: devbox run -- just vet
 
+      - name: Run golangci-lint
+        id: lint
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
+        run: devbox run -- just lint
+
+      - name: Static security analysis (gosec)
+        id: lint-sec
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
+        run: devbox run -- just lint-sec
+
+      - name: Vulnerability scan (govulncheck)
+        id: lint-vuln
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
+        run: devbox run -- just lint-vuln
+
       - name: Test
+        id: test
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
         run: devbox run -- go test -race -count=1 -coverprofile=coverage.out ./...
 
       - name: Upload coverage
-        if: always()
+        id: coverage
+        if: always() && needs.changes.outputs.code == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage.out
           retention-days: 7
 
-  lint:
-    name: golangci-lint
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+      - name: Build
+        id: build
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
+        run: devbox run -- just build
+
+      - name: Aggregate check results
+        if: always()
+        env:
+          STEPS: ${{ toJSON(steps) }}
+        run: |
+          set -euo pipefail
+          failed=$(printf '%s' "$STEPS" | jq -r 'to_entries[] | select(.value.outcome == "failure") | .key')
+          if [ -n "$failed" ]; then
+            printf 'failed checks:\n%s\n' "$failed"
+            printf '%s' "$failed" | while read -r s; do echo "::error::check failed: $s"; done
+            exit 1
+          fi
+          echo "all checks passed"
+
+  build-macos:
+    name: build / macos-latest
+    runs-on: macos-latest
+    needs: changes
+    # github.event.pull_request is absent on push, so the dependabot guard is
+    # gated on the event type too.
+    if: >-
+      needs.changes.outputs.code == 'true' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.user.login != 'dependabot[bot]')
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Install devbox
-        uses: jetify-com/devbox-install-action@v0.15.0
-        with:
-          enable-cache: true
-          devbox-version: 0.17.4
-
-      - name: Run golangci-lint
-        run: devbox run -- just lint
-
-  security:
-    name: gosec + govulncheck
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install devbox
-        uses: jetify-com/devbox-install-action@v0.15.0
-        with:
-          enable-cache: true
-          devbox-version: 0.17.4
-
-      - name: Static security analysis (gosec)
-        run: devbox run -- just lint-sec
-
-      - name: Set up Go for govulncheck
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.26.4'
-          cache: true
-
-      - name: Vulnerability scan (govulncheck)
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
-
-  build:
-    name: build / ${{ matrix.os }}
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            runs-on: blacksmith-2vcpu-ubuntu-2404
-          - os: macos-latest
-            runs-on: blacksmith-6vcpu-macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install devbox
-        uses: jetify-com/devbox-install-action@v0.15.0
-        with:
-          enable-cache: true
-          devbox-version: 0.17.4
 
       - name: Cache Go modules and build
         uses: actions/cache@v6
         with:
           path: |
             ~/go/pkg/mod
-            ~/.cache/go-build
             ~/Library/Caches/go-build
-          key: ${{ matrix.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ matrix.os }}-go-
+            ${{ runner.os }}-go-
+
+      - name: Install devbox
+        uses: jetify-com/devbox-install-action@v0.15.0
+        with:
+          enable-cache: true
+          devbox-version: 0.17.4
 
       - name: Build
         run: devbox run -- just build
