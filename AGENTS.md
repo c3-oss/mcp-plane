@@ -92,7 +92,8 @@ and validated by CI.
   `docs`, `test`, `chore`, `ci`, and merge commits.
 
 PRs target `master`. CI runs three jobs: `detect changes` decides whether
-a PR touches anything beyond Markdown, `ci` carries the whole Ubuntu lane
+a PR touches anything outside Markdown files, `docs/**` and `LICENSE`,
+`ci` carries the whole Ubuntu lane
 (commit lint, quality gates, tidy, vet, lint, `gosec`, `govulncheck`,
 tests, build) in one sequential job, and `build / macos-latest` covers
 the macOS build. Docs-only and Dependabot PRs skip the macOS job.
