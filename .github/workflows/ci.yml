@@ -12,12 +12,15 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   changes:
     name: detect changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # dorny/paths-filter reads the PR file list through the REST API.
+      pull-requests: read
     outputs:
       code: ${{ github.event_name == 'push' || steps.filter.outputs.code == 'true' }}
     steps:
@@ -42,10 +45,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Restored before devbox: the init_hook runs during the devbox install
-      # and already reads from the Go module cache.
-      - name: Cache Go modules and build
-        uses: actions/cache@v6
+      - name: Restore Go modules and build cache
+        id: go-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/go/pkg/mod
@@ -133,16 +135,32 @@ jobs:
         continue-on-error: true
         run: devbox run -- just build
 
+      # Saved explicitly rather than through actions/cache@v6, whose post step
+      # is post-if: success() and would be skipped whenever the aggregator
+      # below fails the job.
+      - name: Save Go modules and build cache
+        if: always() && steps.go-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
+
       - name: Aggregate check results
         if: always()
         env:
           STEPS: ${{ toJSON(steps) }}
         run: |
           set -euo pipefail
-          failed=$(printf '%s' "$STEPS" | jq -r 'to_entries[] | select(.value.outcome == "failure") | .key')
+          failed=$(printf '%s' "$STEPS" | jq -r '
+            to_entries[]
+            | select([.value.outcome, .value.conclusion]
+                     | any(. == "failure" or . == "cancelled"))
+            | .key')
           if [ -n "$failed" ]; then
             printf 'failed checks:\n%s\n' "$failed"
-            printf '%s' "$failed" | while read -r s; do echo "::error::check failed: $s"; done
+            printf '%s\n' "$failed" | while read -r s; do echo "::error::check failed: $s"; done
             exit 1
           fi
           echo "all checks passed"
