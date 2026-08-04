@@ -65,8 +65,8 @@ Common tasks (run via `just <target>`):
 | `just docker-build` | local Docker image |
 | `just clean` | drop build outputs |
 
-`just tools` installs Go-based binaries (`govulncheck`, `gosec`) into
-`./bin`. Devbox does this automatically on `devbox shell` entry.
+Devbox provides `govulncheck` and `gosec` as pinned packages. `just
+tools` installs both into `./bin` for setups without devbox.
 
 ## Coding style
 
@@ -91,8 +91,11 @@ and validated by CI.
 - The CI changelog (via GoReleaser) groups `feat` and `fix` and drops
   `docs`, `test`, `chore`, `ci`, and merge commits.
 
-PRs target `master`. CI runs five jobs that must all pass: `quality`,
-`test`, `lint`, `security`, `build` (Ubuntu + macOS matrix).
+PRs target `master`. CI runs three jobs: `detect changes` decides whether
+a PR touches anything beyond Markdown, `ci` carries the whole Ubuntu lane
+(commit lint, quality gates, tidy, vet, lint, `gosec`, `govulncheck`,
+tests, build) in one sequential job, and `build / macos-latest` covers
+the macOS build. Docs-only and Dependabot PRs skip the macOS job.
 
 ## Hooks
 
