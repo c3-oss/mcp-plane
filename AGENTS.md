@@ -117,17 +117,25 @@ takes it from there:
    GitHub Releases.
 2. `scripts/publish-npm.sh` stamps the tag version into the five
    `npm/*/package.json` files, copies the freshly-built binaries into
-   the four platform sub-packages, and publishes them all to npm —
+   the four platform sub-packages, checks that all five agree on the
+   version and declare `repository`, and publishes them all to npm —
    `@c3-oss/mcp-plane` (main shim) and `@c3-oss/mcp-plane-{darwin,linux}-{amd64,arm64}`.
    This is what makes `npx -y @c3-oss/mcp-plane` work.
 3. Docker pushes a multi-arch image to GHCR.
 
 `just snapshot` is the local equivalent for steps 1+3 and writes
-everything to `dist/`. The npm step requires `NODE_AUTH_TOKEN` and is
-CI-only.
+everything to `dist/`. The npm step is CI-only.
 
-The npm publish needs a granular `NPM_TOKEN` secret in the GitHub repo,
-scoped to the `@c3-oss` org with publish permission.
+The npm publish authenticates via OIDC trusted publishing: the release job
+exchanges its `id-token` for npm credentials on a GitHub-hosted runner, so
+no `NPM_TOKEN` secret is needed. Each package name has a trusted publisher
+registered on npm for `c3-oss/mcp-plane` + `release.yml`.
+
+Every publish carries provenance, and npm compares each manifest's
+`repository.url` against the repository recorded in the sigstore bundle —
+a manifest without one is rejected with `422 Unprocessable Entity`. The
+pre-flight in step 2 catches that before the first publish, so a mismatch
+cannot leave some sub-packages published and others not.
 
 ## What is intentionally *not* here
 

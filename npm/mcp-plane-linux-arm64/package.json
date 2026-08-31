@@ -3,6 +3,10 @@
   "version": "0.0.0-dev",
   "description": "mcp-plane binary for Linux arm64",
   "homepage": "https://github.com/c3-oss/mcp-plane",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/c3-oss/mcp-plane.git"
+  },
   "license": "CC0-1.0",
   "os": ["linux"],
   "cpu": ["arm64"],

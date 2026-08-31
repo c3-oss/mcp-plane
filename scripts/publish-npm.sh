@@ -4,8 +4,8 @@
 # version coherence, and `npm publish` each.
 #
 # Designed to run after goreleaser inside .github/workflows/release.yml.
-# Requires Node.js in PATH (used for portable package.json edits) and
-# NODE_AUTH_TOKEN set to a valid npm token for @c3-oss/*.
+# Requires Node.js in PATH (used for portable package.json edits). Auth is
+# via npm OIDC trusted publishing (npm >= 11.5.1); no token needed.
 
 set -eu
 
@@ -65,9 +65,12 @@ for p in $PLATFORMS; do
     chmod 0755 "$dst"
 done
 
-# 3. Pre-flight: every package.json shares the exact same version.
-#    A divergent main package vs. sub-package version makes
-#    optionalDependencies resolve to nothing.
+# 3. Pre-flight: every package.json shares the exact same version and
+#    declares the repository. A divergent main package vs. sub-package
+#    version makes optionalDependencies resolve to nothing, and npm
+#    rejects a --provenance publish whose repository.url does not match
+#    the repo the workflow ran in.
+EXPECTED_REPO_URL=git+https://github.com/c3-oss/mcp-plane.git
 for pkg in "$NPM_ROOT/mcp-plane/package.json" \
            "$NPM_ROOT/mcp-plane-darwin-arm64/package.json" \
            "$NPM_ROOT/mcp-plane-darwin-amd64/package.json" \
@@ -78,6 +81,11 @@ for pkg in "$NPM_ROOT/mcp-plane/package.json" \
         echo "version mismatch in $pkg: $actual != $VERSION" >&2
         exit 1
     fi
+    repo=$(node -e "console.log((require('$pkg').repository || {}).url || '')")
+    if [ "$repo" != "$EXPECTED_REPO_URL" ]; then
+        echo "repository.url in $pkg is '$repo', expected '$EXPECTED_REPO_URL'" >&2
+        exit 1
+    fi
 done
 
 # 4. Publish sub-packages first, then the main package. If the main
@@ -85,8 +93,8 @@ done
 #    install @c3-oss/mcp-plane with unresolved optionalDependencies
 #    and the shim would fail at runtime.
 for p in $PLATFORMS; do
-    (cd "$NPM_ROOT/mcp-plane-$p" && npm publish --access public)
+    (cd "$NPM_ROOT/mcp-plane-$p" && npm publish --access public --provenance)
 done
-(cd "$NPM_ROOT/mcp-plane" && npm publish --access public)
+(cd "$NPM_ROOT/mcp-plane" && npm publish --access public --provenance)
 
 echo "published @c3-oss/mcp-plane@$VERSION + 4 platform sub-packages"
